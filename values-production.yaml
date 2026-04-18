@@ -1,0 +1,11 @@
+frontend:
+  replicas: 2
+
+api:
+  env: production
+  logLevel: warn
+  minReplicas: 2
+  maxReplicas: 8
+
+db:
+  storage: 2Gi

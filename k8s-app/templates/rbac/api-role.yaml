@@ -1,0 +1,29 @@
+# Role: api tier can read configmaps in its namespace only
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: api-configmap-reader
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "k8s-app.labels" . | nindent 4 }}
+rules:
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "list"]
+  resourceNames: ["api-config"]   # restricted to specific ConfigMap
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: api-configmap-reader-binding
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "k8s-app.labels" . | nindent 4 }}
+subjects:
+- kind: ServiceAccount
+  name: api-sa
+  namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: Role
+  name: api-configmap-reader
+  apiGroup: rbac.authorization.k8s.io

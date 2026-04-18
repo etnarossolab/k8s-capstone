@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: {{ .Release.Namespace }}
+  labels: {{- include "k8s-app.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.frontend.replicas | default 2 }}
+  selector:
+    matchLabels: {tier: frontend}
+  template:
+    metadata:
+      labels:
+        {{- include "k8s-app.labels" . | nindent 8 }}
+        tier: frontend
+    spec:
+      serviceAccountName: frontend-sa
+      automountServiceAccountToken: false
+      containers:
+      - name: frontend
+        image: nginx:1.25-alpine
+        ports: [{containerPort: 80, name: http}]
+        resources:
+          requests: {cpu: "100m", memory: "64Mi"}
+          limits:   {cpu: "200m", memory: "128Mi"}
+        readinessProbe:
+          httpGet: {path: /, port: http}
+          initialDelaySeconds: 5
+          periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector: {tier: frontend}
+  ports: [{port: 80, name: http}]
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: capstone-ingress
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts: [capstone.local]
+    secretName: capstone-tls
+  rules:
+  - host: capstone.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service: {name: frontend, port: {name: http}}
+      - path: /api
+        pathType: Prefix
+        backend:
+          service: {name: api, port: {name: http}}

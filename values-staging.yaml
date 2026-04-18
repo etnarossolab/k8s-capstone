@@ -1,0 +1,11 @@
+frontend:
+  replicas: 1
+
+api:
+  env: staging
+  logLevel: debug
+  minReplicas: 1
+  maxReplicas: 3
+
+db:
+  storage: 1Gi

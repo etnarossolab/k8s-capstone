@@ -1,0 +1,56 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: capstone-api
+  namespace: monitoring
+  labels:
+    release: kube-prom         # must match operator selector
+spec:
+  namespaceSelector:
+    matchNames: [production]
+  selector:
+    matchLabels: {tier: api}
+  endpoints:
+  - port: http
+    interval: 15s
+    path: /metrics
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: capstone-alerts
+  namespace: monitoring
+  labels:
+    release: kube-prom
+spec:
+  groups:
+  - name: capstone.production
+    rules:
+    - alert: CapstoneAPIDown
+      expr: up{namespace="production",tier="api"} == 0
+      for: 1m
+      labels: {severity: critical}
+      annotations:
+        summary: "API tier is down in production"
+    - alert: CapstoneAPIHighRestarts
+      expr: |
+        increase(kube_pod_container_status_restarts_total{
+          namespace="production",tier="api"
+        }[30m]) > 3
+      for: 2m
+      labels: {severity: warning}
+      annotations:
+        summary: "API pod {{`{{ $labels.pod }}`}} restarting frequently"
+    - alert: CapstoneHPAMaxed
+      expr: |
+        kube_horizontalpodautoscaler_status_current_replicas{
+          namespace="production",
+          horizontalpodautoscaler="api-hpa"
+        } >= kube_horizontalpodautoscaler_spec_max_replicas{
+          namespace="production",
+          horizontalpodautoscaler="api-hpa"
+        }
+      for: 5m
+      labels: {severity: warning}
+      annotations:
+        summary: "API HPA at maximum replicas — may need manual intervention"
